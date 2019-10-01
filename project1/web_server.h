@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <sstream>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>

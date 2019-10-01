@@ -23,7 +23,6 @@ void printStringBuffer(char *c) {
 }
 
 int getDelimeterIndex(char *buffer, int startingIndex) {
-    std::cout << "inside getDelimeterIndex, startingIndex: " << startingIndex << std::endl;
     while(startingIndex < strlen(buffer) && buffer[startingIndex] != ' ') {
         startingIndex++;
     }
@@ -34,18 +33,17 @@ int getDelimeterIndex(char *buffer, int startingIndex) {
  * Used to find the end of the line in the request
  **/
 int findCarriageReturn(char *buffer) {
-    std::cout << "inside of findCarriageReturn" << std::endl;
+    DEBUG << "inside of findCarriageReturn" << ENDL;
     int index = 0;
     int carriage_index = -1;
     while(index < strlen(buffer)) {
       if(buffer[index] == '\n' || buffer[index] == '\r') {
-        std::cout << "found a carriage return at buffer[index]: " << buffer[index] << std::endl;
+        DEBUG << "found a carriage return at buffer[index]: " << buffer[index] << ENDL;
         carriage_index = index;
         return carriage_index;
       }
       index++;
     }
-    std::cout << "carriage_index before returning" << carriage_index << std::endl;
     return carriage_index;
 }
 
@@ -63,7 +61,15 @@ char *getStr(char *buffer, int start, int end) {
     return (char*)temp;
 }
 
-        
+bool isCharArrayEmpty(char *buffer) {
+
+
+  for(int i = 0; i < strlen(buffer); i++) {
+    if(buffer[i] != 0)
+      return false;
+  }
+  return true;
+}    
 // **************************************************************************************
 // * processConnection()
 // * - Handles reading the line from the network and sending it back to the client.
@@ -78,10 +84,11 @@ int processConnection(int sockFd) {
   int request_index = -1;
   int carriage_index = 0;
   bzero(carriage_buffer, sizeof(carriage_buffer));
-
+  bool read_buffer = true;
   while (keepGoing) {
-    std::cout << "iterating in keepGoing loop" << std::endl;
+    // catch CTRL^C
     signal(SIGINT, sigHandler);
+
     //
     // Call read() call to get a buffer/line from the client.
     // Hint - don't forget to zero out the buffer each time you use it.
@@ -92,115 +99,155 @@ int processConnection(int sockFd) {
     DEBUG << "Receiving block of data" << ENDL;
     read(sockFd, buffer, buffer_size);
 
-    DEBUG << "buffer: " << buffer << ENDL;
+    buffer[buffer_size] = '\0';
+    
     request_index = findCarriageReturn(buffer);
     if(request_index != -1) {
-      std::cout << "We found a carriage whoo!!, request_index: " << request_index << std::endl;
-      // finish building the string
+      DEBUG << "A carriage return was found" << ENDL;
+      
+      // place all of the buffer containing data from the request header into carriage_buffer
       for(size_t i = 0; i < request_index; i++){
         carriage_buffer[carriage_index + i] = buffer[i];
       }
-      // parse the request and determine if it's a good or bad request
-      std::cout << "Printing out the mfing request: " << std::endl;
+      
       // add the offset of the carriage_index 
       request_index += carriage_index;
-      for(int i = 0; i < request_index; i++){
-        std::cout << carriage_buffer[i];
-      }
-      std::cout << std::endl;
+      
       
       // find the GET in the request header
       int get_index = getDelimeterIndex(carriage_buffer, 0);
 
-      std::cout << "get_index: " << get_index << std::endl;
+      // **************************************
+      // check that GET keyword appears in request
+      // **************************************
+      char getMsg[get_index];
+      
+      for(int i = 0; i < get_index; i++){
+        getMsg[i] = carriage_buffer[i];
+      }
 
-      // **************************************
-      // TODO: check that GET keyword appears
-      // **************************************
+      // add end of string character
+      getMsg[get_index] = '\0';
+
+      // check if the request contains a correct GET message, if not send a 400 error
+      if(strcmp(getMsg, "GET") != 0) {
+        
+        // write out a 400 error
+        char *error = "HTTP/1.0 400 Bad Request\r\nContent-Length: 15\r\nConnection: close\r\n\r\n400 Bad Request";
+        DEBUG << "Sending HTTP/1.0 400 Bad Request" << ENDL;
+        write(sockFd, error, strlen(error));
+
+        // keeps program going
+        return 0;
+      } else {
+        DEBUG << "Was a valid GET request" << ENDL;
+      }
 
       // find file name, index is + 1 what the get_index was
       int file_index = getDelimeterIndex(carriage_buffer, get_index + 1);
-      std::cout << "file_index: " << file_index<< "get_index: " << get_index << std::endl;
 
+      // initialize space for the file name
       char fileMsg[file_index - get_index + 1];
-      std::cout << "strlen(fileMsg) before population: " << strlen(fileMsg) << std::endl;
+
+      //initialize index for file msg since carriage buffer is starting at get_index + 1
       int count = 0;
       for(int i = get_index + 1; i < file_index; i++){
         fileMsg[count] = carriage_buffer[i];
         count++;
-        // std::cout << carriage_buffer[i];
       }
-      std::cout << "strlen(fileMsg) before printing: " << strlen(fileMsg) << std::endl;
-      for(int i = 0; i < strlen(fileMsg); i++) {
-        std::cout << fileMsg[i];
-      }
-      std::cout << std::endl;
+      
+      // Set the end of the string in fileMsg to get rid of empty characters in the buffer
       fileMsg[file_index - get_index - 1] = '\0';
-      std::cout << "strlen(fileMsg): " << strlen(fileMsg) << std::endl;
+
       
       // check to see if fileMsg is a valid file name
-      // check for html file
-      if(strcmp(fileMsg, "/file1.html") == 0) {
-        std::cout << "This is a valid html file name" << std::endl;
+      if(strcmp(fileMsg, "/file1.html") == 0 || strcmp(fileMsg, "/file2.html") == 0) { // check for html file
+        DEBUG << "Was a valid html file name" << ENDL;
+        // read file and build response
+        FILE *fp;
+        char ch;
+        std::string fileName = std::string(fileMsg).substr(1);
+        fp = fopen(fileName.c_str(), "r");
 
-        // parse correct file name
-      } else if(strcmp(fileMsg, "image1.jpg") == 0) { // check for image file
-        std::cout << "This is a valid jpg file name" << std::endl;
+        if(fp == NULL) {
+          DEBUG << "Error while opening valid file" << ENDL;
+          exit(-1);
+        }
 
+        int file_size = 0;
+        DEBUG << "File content:" << ENDL;
+        
+        fseek(fp, 0L, SEEK_END);
+        file_size = ftell(fp);
+
+        char body_msg[file_size];
+
+        // rewind file pointer
+        rewind(fp);
+        int file_i = 0;
+        while((ch = fgetc(fp)) != EOF) {
+          body_msg[file_i] = ch;
+
+          std::cout << body_msg[file_i];
+          file_i++;
+        }
+        std::cout << std::endl;
+        
+        DEBUG << "Size of file: " << file_size << ENDL;
+        DEBUG << "Size of body_msg: " << strlen(body_msg) << ENDL;
+        // TODO: send successful response to GET request for file1.html file
+        // TODO: insert correct content length
+        char *successful_response = "HTTP/1.0 200 ok\r\nContent-Length: ";
+        char content_size[8];
+
+        DEBUG << "About to concatenate the size of the file" << ENDL;
+        std::string resp = std::string(successful_response);
+
+        resp.append(std::to_string(file_size));
+        char *rest_of_response = "\r\nContent-type:text/html\r\n\r\n";
+        resp.append(std::string(rest_of_response));
+
+        resp.append(std::string(body_msg));
+        DEBUG << "resp: " << resp << ENDL;
+
+        write(sockFd, resp.c_str(), resp.size());
+
+        fclose(fp);
+
+        // keeps program going
+        return 0;
+      } else if(strcmp(fileMsg, "/image1.jpg") == 0) { // check for image file
+        DEBUG << "Was a valid jpg file name" << ENDL;
+
+        // TODO: send successful response to GET request for image1.jpg
+        char *successful_response = "HTTP/1.0 200 ok\r\nContent-Length: 15\r\nContent-type:text/html\r\n\r\n";
+        write(sockFd, successful_response, strlen(successful_response));
+        // keeps program going
+        return 0;
       }
       else {
-        std::cout << "was not a valid file name" << std::endl;
+        
         // Print out 404 error
+        // char *error = "HTTP/1.0 404 Not Found\n\n";
+        char *error = "HTTP/1.0 404 Not Found\r\n\r\n404 Not Found";
+        DEBUG << "Sending HTTP/1.0 404 Not Found" << ENDL;
+        write(sockFd, error, strlen(error));
+        
+        // keeps program going
+        return 0;
       }
-      exit(0);
-    } else {
-      std::cout << "We didn't find a carriage, carriage_index: " << carriage_index << std::endl;
+    } else { // since a carriage return wasn't found, continue parsing through the socket data
+      DEBUG << "Didn't find a carriage, continuing to read from socket" << ENDL;
+
       // build the carriage buffer since we still need to keep reading
       for(size_t i = 0; i < buffer_size; i++){
         carriage_buffer[carriage_index + i] = buffer[i];
       }
+      
+      //increment the carriage buffer since we added another 10 bytes
       carriage_index += buffer_size;
     }
-    //
-    // Check for one of the commands
-    //
-    // if(strstr(buffer, "GET")) {
-    //     DEBUG << "Recieved a \"GET\" request" << ENDL;
 
-    //     // Parse through the buffer checking for correct format of GET request.
-    //     // Need to check that the file is a valid file, if not return a 404 response.
-    //     // Need to check that the request is a valid GET request, if not return a 404.
-    //     int startingIndex = 0; 
-    //     std::cout << "about to print out buffer string" << buffer << std::endl; 
-    //     int get_msg_index = getDelimeterIndex(buffer, startingIndex);
-    //     std::cout << "get_msg_index: " << get_msg_index << std::endl; 
-        
-    //     // char *getMsg = getStr(buffer,0,get_msg_index);
-    //     char getMsg[get_msg_index];
-    //     for(size_t i = 0; i < get_msg_index; i++) {
-    //         getMsg[i] = buffer[i];
-    //     }
-    //     getMsg[get_msg_index] = '\0';
-    //     std::cout << "getMsg: " << getMsg << std::endl;
-    //     if(strcmp(getMsg, "GET") == 0) {
-    //         std::cout << "This is a GET request" << std::endl;
-    //     } else {
-    //         std::cout << "was not a GET request" << std::endl;
-    //         // Print out bad request message
-    //     }
-    //     int file_request_index = getDelimeterIndex(buffer, get_msg_index + 1);
-    //     std::cout << "file_request_index: " << file_request_index << std::endl;
-    //     // slice buffer to get index;
-    //     // for(size_t i = 4; buffer[i] != ' ' || 0; i++) {
-    //        // std::cout << buffer[i] << std::endl;
-    //     //}
-    //     // Parse through request word for word
-    // }
-   //  DEBUG << "Writing data to client" << ENDL;
-    //
-    // Call write() to send line back to the client.
-    //
-    // write(sockFd, buffer, 1024);
   }
 
   return quitProgram;
@@ -311,6 +358,9 @@ int main (int argc, char *argv[]) {
 
     DEBUG << "Calling accept(" << listenFd << "NULL,NULL)." << ENDL;
 
+    std::cout << std::endl;
+  
+
     // The accept() call checks the listening queue for connection requests.
     // If a client has already tried to connect accept() will complete the
     // connection and return a file descriptor that you can read from and
@@ -324,9 +374,14 @@ int main (int argc, char *argv[]) {
 
     DEBUG << "Waiting for data from client" << ENDL;  
     quitProgram = processConnection(connFd);
-   
+
     close(connFd);
+
+    std::cout << std::endl;
+    std:: cout << std::endl;
   }
+  
+  DEBUG << "after closing socket with client, closing the server socket" << ENDL;
 
   close(listenFd);
 
