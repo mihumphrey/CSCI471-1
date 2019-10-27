@@ -7,6 +7,10 @@
 // ***************************************************************************
 
 
+// Initialization of global variables for Go Back N packet management
+int BASE, NEXTSEQNUM, EXPECTEDSEQNUM, LASTSEQNUM;
+
+
 /**
  * This method will create a packet struct
  * int seqnum - the sequence number of the packet
@@ -14,7 +18,18 @@
  * int checksum - the checksum value of the packet
  * char[] payload - the payload of the packet
  **/
-// packet makePacket(int seqnum, int acknum, int checksum, char[] payload)
+pkt makePacket(int seqnum, int acknum, int checksum, char payload[]) {
+  // initialize packet
+  struct pkt newPacket;
+
+  //populate packet
+  newPacket.seqnum = seqnum;
+  newPacket.acknum = acknum;
+  newPacket.checksum = checksum;
+  newPacket.payload = payload;
+
+  return newPacket;
+}
 
 // ***************************************************************************
 // * The following routine will be called once (only) before any other
@@ -22,6 +37,8 @@
 // ***************************************************************************
 void A_init()
 {
+  base = 1;
+  nextseqnum = 1;
   // initialize base and nextseqnum to 1
 }
 
@@ -31,6 +48,8 @@ void A_init()
 // ***************************************************************************
 void B_init()
 {
+  expectedseqnum = 1;
+  lastseqnum = 1;
   // initialize expectedseqnum to 1, create a sendpacket (makepacket(0, ACK, checksum)), lastseqnum = -1
 }
 
@@ -77,7 +96,7 @@ int A_output(struct msg message)
   simulation->tolayer3(A,packet);
 
   // if base == nextseqnum
-  // nextseqnum++
+  nextseqnum++;
   return 1;
 }
 
@@ -121,11 +140,14 @@ void B_input(struct pkt packet)
 {
   std::cout << "Layer 4 on side B has recieved a packet from layer 3 sent over the network from side A:" << packet << std::endl;
   // if packet && !isCorrupt(packet)
+  if(packet.seqnum > 0) {
     // if hasnextseqnum(packet, expectedsegnum)
+    
       // extract data from packet payload and pass to Layer 5
       struct msg message;
       bcopy(packet.payload,message.data,20);
       simulation->tolayer5(B,message);
+  }
       
       // send a packet back to A sendpkt = makepacket(expectedseqnum, ACK, checksum)
       //  simulation->tolayer3(A,sendpkt);
