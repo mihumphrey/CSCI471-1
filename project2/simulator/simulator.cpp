@@ -379,7 +379,6 @@ void simulator::tolayer3(int AorB, struct pkt packet) {
 
 
 void simulator::tolayer5(int AorB, struct msg message) {
-
     INFO << "TOLAYER5: Data received at application layer on side " << SIDE_NAMES[AorB]
          << ", (" << message << ").";
 }

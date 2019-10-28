@@ -9,7 +9,13 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/GoBackN",
-            "args": [],
+            "args": [
+                "-n 5",
+                "-l 0",
+                "-c 0.0",
+                "-t 1",
+                "-d 1"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

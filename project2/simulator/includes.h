@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <iostream>
-
+#include <vector>
+#include <string>
 
 #include <boost/log/trivial.hpp>
 #include <boost/log/core.hpp>
