@@ -169,11 +169,10 @@ void A_input(struct pkt packet)
   std::cout << "Layer 4 on side A has recieved a packet sent over the network from side B:" << packet << std::endl;
   
   if(!isPacketCorrupt(packet)) {
-
-    // struct msg message;
-    // bcopy(packet.payload,message.data,20);
-    // simulation->tolayer5(A,message);
-
+    // restarts the timer
+    simulation->stoptimer(A);
+    simulation->starttimer(A,TIMER_INTERVAL);
+    
     // sets the BASE to the ack number from B
     BASE = packet.acknum + 1;
 
@@ -185,16 +184,7 @@ void A_input(struct pkt packet)
 
   }
    else {
-    
-    // restart timer
-    // simulation->stoptimer(A);
-    // simulation->starttimer(A,TIMER_INTERVAL);
-    
-    // re-initialize A since the packet from B was corrupt
-    // A_init();
     return;
-    // NEXTSEQNUM = BASE;
-    // BASE = 1;
   }
 }
 
@@ -216,6 +206,7 @@ void B_input(struct pkt packet)
 {
   std::cout << "Layer 4 on side B has recieved a packet from layer 3 sent over the network from side A:" << packet << std::endl;
   if(!isPacketCorrupt(packet) && hasNextSeqNum(packet, EXPECTEDSEQNUM)) {
+    
     // extract data from packet payload and pass to Layer 5
     struct msg message;
     bcopy(packet.payload,message.data,20);
@@ -233,8 +224,7 @@ void B_input(struct pkt packet)
     simulation->tolayer3(B,sendPacket);
     
     EXPECTEDSEQNUM++;
-    // LASTSEQNUM = packet.seqnum;
-    // LASTSEQNUM = EXPECTEDSEQNUM;
+
   } else {
     // resends an ACK for the most recently received in-order packet
     
@@ -271,7 +261,6 @@ void A_timerinterrupt()
     simulation->tolayer3(A, sentPackets[i]);
   }
     
-  // NEXTSEQNUM = BASE + maxRetransmit;
 }
 
 // XC
