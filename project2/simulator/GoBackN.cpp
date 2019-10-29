@@ -8,7 +8,7 @@
 
 
 // Initialization of global variables for Go Back N packet management
-int BASE, NEXTSEQNUM, EXPECTEDSEQNUM, LASTSEQNUM, CUM_ACK, CLEAN_WRITE;
+int BASE, NEXTSEQNUM, EXPECTEDSEQNUM, CUM_ACK, CLEAN_WRITE;
 
 std::vector<pkt> sentPackets(20000);
 
@@ -83,7 +83,6 @@ void A_init()
 void B_init()
 {
   EXPECTEDSEQNUM = 1;
-  LASTSEQNUM = 0;
 }
 
 /**
@@ -184,15 +183,17 @@ void A_input(struct pkt packet)
       simulation->starttimer(A, TIMER_INTERVAL);
     }
 
-  } else {
+  }
+   else {
     
     // restart timer
-    simulation->stoptimer(A);
-    simulation->starttimer(A,TIMER_INTERVAL);
+    // simulation->stoptimer(A);
+    // simulation->starttimer(A,TIMER_INTERVAL);
     
     // re-initialize A since the packet from B was corrupt
     // A_init();
-    NEXTSEQNUM = BASE;
+    return;
+    // NEXTSEQNUM = BASE;
     // BASE = 1;
   }
 }
@@ -232,7 +233,7 @@ void B_input(struct pkt packet)
     simulation->tolayer3(B,sendPacket);
     
     EXPECTEDSEQNUM++;
-    LASTSEQNUM = packet.seqnum;
+    // LASTSEQNUM = packet.seqnum;
     // LASTSEQNUM = EXPECTEDSEQNUM;
   } else {
     // resends an ACK for the most recently received in-order packet
@@ -244,7 +245,7 @@ void B_input(struct pkt packet)
     char emptyStr[20] = {0};
 
     // sequence numbmer for B is arbitrary
-    struct pkt sendPacket = makePacket(1, LASTSEQNUM, 0, emptyStr);
+    struct pkt sendPacket = makePacket(1, EXPECTEDSEQNUM - 1, 0, emptyStr);
     sendPacket.checksum = calculateChecksum(sendPacket);
 
     simulation->tolayer3(B,sendPacket);
@@ -258,19 +259,19 @@ void B_input(struct pkt packet)
 // ***************************************************************************
 void A_timerinterrupt()
 {
-  simulation->stoptimer(A);
+  // simulation->stoptimer(A);
+  simulation->starttimer(A, TIMER_INTERVAL);
   
-  std::cout << "Side A's timer has gone off. LASTSEQNUM: " << LASTSEQNUM << " BASE: " << BASE << " NEXTSEQNUM: " << NEXTSEQNUM << std::endl;
+  // std::cout << "Side A's timer has gone off. LASTSEQNUM: " << LASTSEQNUM << " BASE: " << BASE << " NEXTSEQNUM: " << NEXTSEQNUM << std::endl;
   
   // for issues with stressTest.pl
-  int maxRetransmit = std::min(NEXTSEQNUM, 20);
+  int maxRetransmit = std::min(NEXTSEQNUM, BASE + 20);
 
   for(int i = BASE; i < maxRetransmit; i++) {
     simulation->tolayer3(A, sentPackets[i]);
   }
     
-  simulation->starttimer(A, TIMER_INTERVAL);
-  
+  // NEXTSEQNUM = BASE + maxRetransmit;
 }
 
 // XC

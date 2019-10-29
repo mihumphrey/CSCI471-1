@@ -10,11 +10,11 @@
             "request": "launch",
             "program": "${workspaceFolder}/GoBackN",
             "args": [
-                "-n 5",
+                "-n 100",
                 "-l 0",
                 "-c 0.1",
                 "-t 1",
-                "-d 2"
+                "-d 4"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
