@@ -3,6 +3,7 @@
 #include <strings.h>
 #include <iostream>
 #include <vector>
+#include <bitset>
 #include <string>
 
 #include <boost/log/trivial.hpp>

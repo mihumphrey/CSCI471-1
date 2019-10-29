@@ -26,10 +26,10 @@ INC_FILES = ${TARGET}.h includes.h main.h simulator.h
 #LIBRARYS = -lbsd -lboost_regex -lboost_log_setup -lboost_log  -lboost_thread -lboost_system -lpthread 
 
 # Macport boost libraries
-LIBRARYS = -lboost_regex-mt -lboost_log_setup-mt -lboost_log-mt -lboost_thread-mt -lboost_system-mt -lpthread
+#LIBRARYS = -lboost_regex-mt -lboost_log_setup-mt -lboost_log-mt -lboost_thread-mt -lboost_system-mt -lpthread
 
 # Uncomment this for isengard
-# LIBRARYS = -lboost_regex -lboost_log_setup -lboost_log  -lboost_thread -lboost_system -lpthread 
+LIBRARYS = -lboost_regex -lboost_log_setup -lboost_log  -lboost_thread -lboost_system -lpthread 
 
 
 ${TARGET}: ${OBJ_FILES}

@@ -129,10 +129,8 @@ int calculateChecksum(pkt packet) {
  **/
 bool isPacketCorrupt(pkt packet) {
   if (packet.checksum == calculateChecksum(packet)) {
-    INFO << "PACKET IS NOT CORRUPT"; 
     return false;
   } else {
-    INFO << "FUCK!!!!!!!!! PACKET WAS CORRUPTED";
     return true;
   }
 }
@@ -172,7 +170,7 @@ void A_input(struct pkt packet)
     // restarts the timer
     simulation->stoptimer(A);
     simulation->starttimer(A,TIMER_INTERVAL);
-    
+
     // sets the BASE to the ack number from B
     BASE = packet.acknum + 1;
 
@@ -249,10 +247,7 @@ void B_input(struct pkt packet)
 // ***************************************************************************
 void A_timerinterrupt()
 {
-  // simulation->stoptimer(A);
   simulation->starttimer(A, TIMER_INTERVAL);
-  
-  // std::cout << "Side A's timer has gone off. LASTSEQNUM: " << LASTSEQNUM << " BASE: " << BASE << " NEXTSEQNUM: " << NEXTSEQNUM << std::endl;
   
   // for issues with stressTest.pl
   int maxRetransmit = std::min(NEXTSEQNUM, BASE + 20);
