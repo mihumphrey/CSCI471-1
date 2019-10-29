@@ -10,7 +10,7 @@
 // Initialization of global variables for Go Back N packet management
 int BASE, NEXTSEQNUM, EXPECTEDSEQNUM, LASTSEQNUM, CUM_ACK, CLEAN_WRITE;
 
-std::vector<pkt> sentPackets(10000);
+std::vector<pkt> sentPackets(20000);
 
 const int TIMER_INTERVAL = 40;
 /**
@@ -83,10 +83,7 @@ void A_init()
 void B_init()
 {
   EXPECTEDSEQNUM = 1;
-  // CUM_ACK gets initialized to 1 since BASE gets initialized to 1 in A_init()
-  CUM_ACK = 1;
   LASTSEQNUM = 0;
-  // initialize expectedseqnum to 1, create a sendpacket (makepacket(0, ACK, checksum)), lastseqnum = -1
 }
 
 /**
@@ -195,7 +192,8 @@ void A_input(struct pkt packet)
     
     // re-initialize A since the packet from B was corrupt
     // A_init();
-    BASE = 1;
+    NEXTSEQNUM = BASE;
+    // BASE = 1;
   }
 }
 
