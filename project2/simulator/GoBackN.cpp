@@ -8,9 +8,11 @@
 
 
 // Initialization of global variables for Go Back N packet management
-int A_BASE, NEXTSEQNUM, EXPECTEDSEQNUM, LASTSEQNUM, CUM_ACK, CLEAN_WRITE;
+int BASE, NEXTSEQNUM, EXPECTEDSEQNUM, LASTSEQNUM, CUM_ACK, CLEAN_WRITE;
 
 std::vector<pkt> sentPackets(10000);
+
+const int TIMER_INTERVAL = 40;
 /**
  * This method will create a packet struct
  * int seqnum - the sequence number of the packet
@@ -69,9 +71,9 @@ bool hasNextSeqNum(pkt &packet, int expectedNum){
 // ***************************************************************************
 void A_init()
 {
-  A_BASE = 1;
+  BASE = 1;
   NEXTSEQNUM = 1;
-  // initialize A_BASE and nextseqnum to 1
+  // initialize BASE and nextseqnum to 1
 }
 
 // ***************************************************************************
@@ -81,46 +83,11 @@ void A_init()
 void B_init()
 {
   EXPECTEDSEQNUM = 1;
-  // CUM_ACK gets initialized to 1 since A_BASE gets initialized to 1 in A_init()
+  // CUM_ACK gets initialized to 1 since BASE gets initialized to 1 in A_init()
   CUM_ACK = 1;
-  LASTSEQNUM = 1;
-  CLEAN_WRITE = 0;
+  LASTSEQNUM = 0;
   // initialize expectedseqnum to 1, create a sendpacket (makepacket(0, ACK, checksum)), lastseqnum = -1
 }
-
-
-
-// // The main function that adds two-bit sequences and returns the addition 
-// string addBitStrings( string first, string second ) 
-// { 
-//     string result;  // To store the sum bits 
-  
-//     // make the lengths same before adding 
-//     int length = makeEqualLength(first, second); 
-  
-//     int carry = 0;  // Initialize carry 
-  
-//     // Add all bits one by one 
-//     for (int i = length-1 ; i >= 0 ; i--) 
-//     { 
-//         int firstBit = first.at(i) - '0'; 
-//         int secondBit = second.at(i) - '0'; 
-  
-//         // boolean expression for sum of 3 bits 
-//         int sum = (firstBit ^ secondBit ^ carry)+'0'; 
-  
-//         result = (char)sum + result; 
-  
-//         // boolean expression for 3-bit addition 
-//         carry = (firstBit & secondBit) | (secondBit & carry) | (firstBit & carry); 
-//     } 
-  
-//     // if overflow, then add a leading 1 
-//     if (carry) 
-//         result = '1' + result; 
-  
-//     return result; 
-// }
 
 /**
  * Will calculate the checksum of a packet.
@@ -181,17 +148,19 @@ int A_output(struct msg message)
 {
   std::cout << "Layer 4 on side A has recieved a message from the application that should be sent to side B: " << message << std::endl;
 
+  // maybe make ack 1, not used anywhere
   struct pkt packet = makePacket(NEXTSEQNUM, NEXTSEQNUM, 0, message.data);
   packet.checksum = calculateChecksum(packet);
 
   simulation->tolayer3(A,packet);
   sentPackets[NEXTSEQNUM] = packet;
   
-  if (A_BASE == NEXTSEQNUM) {
-    INFO << "A_BASE == NEXTSEQNUM starting timer from A_output";
-    simulation->starttimer(A, 100);
+  if (BASE == NEXTSEQNUM) {
+    simulation->starttimer(A, TIMER_INTERVAL);
   }
+  
   NEXTSEQNUM++;
+  
   return 1;
 }
 
@@ -205,23 +174,28 @@ void A_input(struct pkt packet)
   
   if(!isPacketCorrupt(packet)) {
 
-    // sets the BASE to the ack number from B
-    A_BASE = packet.acknum + 1;
-    if(A_BASE >= NEXTSEQNUM) {
-      INFO << "STOPPING TIMER WHOOO A_BASE == NEXTSEQNUM in A_input";
-      simulation->stoptimer(A);
-    } else {
-      simulation->stoptimer(A);
-      INFO << "FUCKKKK INFINITE LOOP STARTING A_BASE != NEXTSEQNUM starting timer from A_input";
-      simulation->starttimer(A, 100);
-    }
-
     // struct msg message;
     // bcopy(packet.payload,message.data,20);
     // simulation->tolayer5(A,message);
 
-  } else { // re-initialize A since the packet from B was corrupt
-    A_init();
+    // sets the BASE to the ack number from B
+    BASE = packet.acknum + 1;
+
+    if(BASE == NEXTSEQNUM) {
+      simulation->stoptimer(A);
+    } else {
+      simulation->starttimer(A, TIMER_INTERVAL);
+    }
+
+  } else {
+    
+    // restart timer
+    simulation->stoptimer(A);
+    simulation->starttimer(A,TIMER_INTERVAL);
+    
+    // re-initialize A since the packet from B was corrupt
+    // A_init();
+    BASE = 1;
   }
 }
 
@@ -242,49 +216,40 @@ int B_output(struct msg message)
 void B_input(struct pkt packet)
 {
   std::cout << "Layer 4 on side B has recieved a packet from layer 3 sent over the network from side A:" << packet << std::endl;
-  if(packet.seqnum > 0 && !isPacketCorrupt(packet)) {
+  if(!isPacketCorrupt(packet) && hasNextSeqNum(packet, EXPECTEDSEQNUM)) {
+    // extract data from packet payload and pass to Layer 5
+    struct msg message;
+    bcopy(packet.payload,message.data,20);
+    simulation->tolayer5(B,message);
+    
+    // send a packet back to A sendpkt = makepacket(expectedseqnum, ACK, checksum)
+    char emptyStr[20] = {0};
+    
+    // creates packet and calculates the checksum
+    // sequence number is arbitrary
+    struct pkt sendPacket = makePacket(1, EXPECTEDSEQNUM, 0, emptyStr);
+    sendPacket.checksum = calculateChecksum(sendPacket);
 
-    if(packet.seqnum > 0 && hasNextSeqNum(packet, EXPECTEDSEQNUM)) {
-
-        // extract data from packet payload and pass to Layer 5
-        struct msg message;
-        bcopy(packet.payload,message.data,20);
-        simulation->tolayer5(B,message);
-        
-        // send a packet back to A sendpkt = makepacket(expectedseqnum, ACK, checksum)
-        char emptyStr[20] = {0};
-
-        // gets the size of the payload and adds it the cumulative ACK
-        // CUM_ACK += sizeof(packet.payload);
-        CUM_ACK++;
-        CLEAN_WRITE++;
-        // creates packet and calculates the checksum
-        struct pkt sendPacket = makePacket(EXPECTEDSEQNUM, (CUM_ACK), 0, emptyStr);
-        sendPacket.checksum = calculateChecksum(sendPacket);
-
-        // puts packet onto the network
-        simulation->tolayer3(B,sendPacket);
-        
-        // increment expected sequence number
-        EXPECTEDSEQNUM++;
-        INFO << "Setting LASTSEQNUM: " << packet.seqnum;
-        LASTSEQNUM = packet.seqnum;
-
-    } else { // discards out of order packet
-      // resends an ACK for the most recently received in-order packet
-      char emptyStr[20] = {0};
-      EXPECTEDSEQNUM = LASTSEQNUM;
-      struct pkt sendPacket = makePacket(LASTSEQNUM, LASTSEQNUM, 0, emptyStr);
-      sendPacket.checksum = calculateChecksum(sendPacket);
-      simulation->tolayer3(B,sendPacket);
-    }
+    // puts packet onto the network
+    simulation->tolayer3(B,sendPacket);
+    
+    EXPECTEDSEQNUM++;
+    LASTSEQNUM = packet.seqnum;
+    // LASTSEQNUM = EXPECTEDSEQNUM;
   } else {
-      // resends an ACK for the most recently received in-order packet
-      char emptyStr[20] = {0};
-      EXPECTEDSEQNUM = LASTSEQNUM;
-      struct pkt sendPacket = makePacket(LASTSEQNUM, LASTSEQNUM, 0, emptyStr);
-      sendPacket.checksum = calculateChecksum(sendPacket);
-      simulation->tolayer3(B,sendPacket);
+    // resends an ACK for the most recently received in-order packet
+    
+    // restart the timer
+    simulation->stoptimer(A);
+    simulation->starttimer(A,TIMER_INTERVAL);
+    
+    char emptyStr[20] = {0};
+
+    // sequence numbmer for B is arbitrary
+    struct pkt sendPacket = makePacket(1, LASTSEQNUM, 0, emptyStr);
+    sendPacket.checksum = calculateChecksum(sendPacket);
+
+    simulation->tolayer3(B,sendPacket);
   }
 }
 
@@ -296,18 +261,18 @@ void B_input(struct pkt packet)
 void A_timerinterrupt()
 {
   simulation->stoptimer(A);
-  std::cout << "Side A's timer has gone off. LASTSEQNUM: " << LASTSEQNUM << " A_BASE: " << A_BASE << " NEXTSEQNUM: " << NEXTSEQNUM << std::endl;
-  for(int i = LASTSEQNUM + 1; i < NEXTSEQNUM; i++){
-    struct pkt packet = sentPackets[i];
-    simulation->tolayer3(A,packet);
+  
+  std::cout << "Side A's timer has gone off. LASTSEQNUM: " << LASTSEQNUM << " BASE: " << BASE << " NEXTSEQNUM: " << NEXTSEQNUM << std::endl;
+  
+  // for issues with stressTest.pl
+  int maxRetransmit = std::min(NEXTSEQNUM, 20);
+
+  for(int i = BASE; i < maxRetransmit; i++) {
+    simulation->tolayer3(A, sentPackets[i]);
   }
-  // if(CLEAN_WRITE < sentPackets.size()) {
-    INFO << "STARTING TIMER from A_timerinterrupt, fuck this shit";
     
-    simulation->stoptimer(A);
-    simulation->starttimer(A, 100);
-  // }
-  // send all packets from A_BASE < x < nextseqnum - 1
+  simulation->starttimer(A, TIMER_INTERVAL);
+  
 }
 
 // XC
