@@ -1,1 +1,1 @@
-scp -r * rileymiller@isengard.mines.edu:~/code/csci471/project2
+scp -r * rileymiller@isengard.mines.edu:~/code/csci471/project3
