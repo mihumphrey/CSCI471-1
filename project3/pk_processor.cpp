@@ -42,9 +42,13 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
     // ***********************************************************************
 	struct ether_header *link_header;
 	link_header = ( struct ether_header * ) packet;
+	uint64_t mac_src = 0;
+	uint64_t mac_dst = 0;
+	memcpy( &mac_src, link_header->ether_shost, sizeof mac_src );
+	memcpy( &mac_dst, link_header->ether_shost, sizeof mac_dst );
 
-	results->newSrcMac( ( uint64_t ) link_header->ether_shost );
-	results->newDstMac( ( uint64_t ) link_header->ether_dhost );
+	results->newSrcMac( mac_src );
+	results->newDstMac( mac_dst );
 
 	// log src/dest bytes
 	TRACE << "Processing MAC src address: " << ether_ntoa( ( const ether_addr * ) link_header->ether_shost ) << ENDL;
@@ -152,7 +156,7 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				// extract the src/dst ports and TCP flags
 				struct tcphdr* tcp_header;
 
-				tcp_header = ( struct tcphdr * ) ( packet + TRANSPORT_LAYER_OFFSET );
+				tcp_header = ( struct tcphdr * ) ( packet + ip_v4_header->ip_hl );
 				
 				// add TCP header
 				results->newTCP( pkthdr->caplen );
@@ -167,13 +171,22 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				TRACE << "Extracting TCP dst port" << tcp_header->th_dport << ENDL;
 
 				// check if SYN bit is set in TCP header
+				// if( tcp_header->th_flags & TH_SYN ) {
+				// 	results->incrementSynCount();
+				// 	TRACE << "Incrementing SYN count" << ENDL;
+				// }
 				if( tcp_header->th_flags & TH_SYN ) {
 					results->incrementSynCount();
 					TRACE << "Incrementing SYN count" << ENDL;
 				}
 
+
 				// check if FIN bit is set in TCP header
-				if( tcp_header->th_flags & TH_FIN ) {
+				// if( tcp_header->th_flags & TH_FIN ) {
+				// 	results->incrementFinCount();
+				// 	TRACE << "Incrementing Fin count" << ENDL;
+				// }
+				if( ( tcp_header->th_flags & TH_FIN ) != 0 ) {
 					results->incrementFinCount();
 					TRACE << "Incrementing Fin count" << ENDL;
 				}
@@ -184,14 +197,18 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				struct udphdr* udp_header;
 
 				udp_header = ( struct udphdr * ) ( packet + TRANSPORT_LAYER_OFFSET );
+				
+				// add udp header
+				results->newUDP(pkthdr->caplen);
+				TRACE << "Found UDP header" << ENDL;
 
 				// extract UDP src port from UDP header
 				results->newSrcUDP( udp_header->uh_sport );
-				TRACE << "Extracting UDP src port" << ENDL;
+				TRACE << "Extracting UDP src port" << udp_header->uh_sport << ENDL;
 
 				// extract UDP dst port from UDP header
 				results->newDstUDP( udp_header->uh_dport );
-				TRACE << "Extracting UDP dst port" << ENDL;
+				TRACE << "Extracting UDP dst port" << udp_header->uh_dport << ENDL;
 
 				break;
 			default:
