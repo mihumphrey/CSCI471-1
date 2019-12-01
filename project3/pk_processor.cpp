@@ -51,14 +51,14 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 	results->newDstMac( mac_dst );
 
 	// log src/dest bytes
-	TRACE << "Processing MAC src address: " << ether_ntoa( ( const ether_addr * ) link_header->ether_shost ) << ENDL;
-	TRACE << "Processing MAC dst address: " << ether_ntoa( ( const ether_addr * ) link_header->ether_dhost ) << ENDL;
+	TRACE << "\tSource MAC = " << ether_ntoa( ( const ether_addr * ) link_header->ether_shost ) << ENDL;
+	TRACE << "\tDestination MAC = " << ether_ntoa( ( const ether_addr * ) link_header->ether_dhost ) << ENDL;
 
 	// extract the length or type of the ethernet field
 	uint16_t len_type_bytes = ntohs( link_header->ether_type );
 
 	// log trace len/type
-	TRACE << "Length or type value from ethernet header: " << len_type_bytes << ENDL;
+	// TRACE << "Length or type value from ethernet header: " << len_type_bytes << ENDL;
 	
 	// *******************************************************************
 	// * If it's an ethernet packet, extract the src/dst address and  
@@ -71,13 +71,15 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 	if(len_type_bytes < ETHERNET_1_THRESH) {
 		results->newOtherLink(len_type_bytes);
 
-		TRACE << "Was not an ethernet packet" << ENDL;
+		TRACE << "\tIs not an Ethernet packet" << ENDL;
 		// add log for other link
 		return;
 	}
 
 	// add logging for ethernet II
-	TRACE << "Adding new ethernet packet" << ENDL;
+	TRACE << "\tEther Type = 2048" << ENDL;
+	TRACE << "\t\tPacket is Ethernet II" << ENDL;
+
 	results->newEthernet( pkthdr->caplen );
 
     // ***********************************************************************
@@ -97,33 +99,33 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 
 	if( len_type_bytes == ARP ) {
 		results->newARP( pkthdr->caplen );
-		TRACE << "Found an ARP packet" << ENDL;
+		TRACE << "\tPacket is ARP" << ENDL;
 
 		return;
 	} else if( len_type_bytes == IP_V_6 ) {
 		results->newIPv6( pkthdr->caplen );
-		TRACE << "Found an IPv6 packet" << ENDL;
+		TRACE << "\tPacket is IPv6" << ENDL;
 
 		return;
 	} else if( len_type_bytes == IP_V_4 ) {
 		isIPv4 = true;
 
 		results->newIPv4( pkthdr->caplen );
-		TRACE << "Found an IPv4 packet" << ENDL;
+		TRACE << "\tPacket is IPv4" << ENDL;
 
 		struct ip* ip_v4_header;
 		ip_v4_header = ( struct ip * )( packet + IP_OFFSET );
 
 		uint32_t ip_src = ntohl( ip_v4_header->ip_src.s_addr );
 		results->newSrcIPv4( ( uint64_t ) ip_v4_header->ip_src.s_addr );
-		TRACE << "Adding IPv4 src address" << inet_ntoa(ip_v4_header->ip_src) << ENDL;
+		TRACE << "\tSource IP address is " << inet_ntoa(ip_v4_header->ip_src) << ENDL;
 
 		uint32_t ip_dst = ntohl( ip_v4_header->ip_dst.s_addr );
 		results->newDstIPv4( ( uint64_t ) ip_v4_header->ip_dst.s_addr );
-		TRACE << "Adding IPv4 dst address" << inet_ntoa(ip_v4_header->ip_dst) << ENDL;
+		TRACE << "\tDestination IP address is " << inet_ntoa(ip_v4_header->ip_dst) << ENDL;
 	} else {
 		results->newOtherNetwork( pkthdr->caplen );
-		TRACE << "Found an otherNetwork packet" << ENDL;
+		TRACE << "\tPacket is from another network" << ENDL;
 	}
 
     // ***********************************************************************
@@ -150,17 +152,17 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 		switch( ip_v4_protocol ) {
 			case ICMP:
 				results->newICMP( pkthdr->caplen );
-				TRACE << "Found an ICMP packet" << ENDL;
+				TRACE << "\tPacket is ICMP" << ENDL;
 				return;
 			case TCP:
 				// extract the src/dst ports and TCP flags
 				struct tcphdr* tcp_header;
 
-				tcp_header = ( struct tcphdr * ) ( packet + ip_v4_header->ip_hl );
+				tcp_header = ( struct tcphdr * ) ( packet + IP_OFFSET + ntohs( ip_v4_header->ip_hl ) );
 				
 				// add TCP header
 				results->newTCP( pkthdr->caplen );
-				TRACE << "Found a TCP packet" << ENDL;
+				TRACE << "Packet is TCP" << ENDL;
 
 				// extract src port from TCP header
 				results->newSrcTCP( tcp_header->th_sport );
@@ -171,49 +173,49 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				TRACE << "Extracting TCP dst port" << tcp_header->th_dport << ENDL;
 
 				// check if SYN bit is set in TCP header
-				// if( tcp_header->th_flags & TH_SYN ) {
-				// 	results->incrementSynCount();
-				// 	TRACE << "Incrementing SYN count" << ENDL;
-				// }
 				if( tcp_header->th_flags & TH_SYN ) {
 					results->incrementSynCount();
 					TRACE << "Incrementing SYN count" << ENDL;
 				}
+				// if( tcp_header->th_flags & TH_SYN ) {
+				// 	results->incrementSynCount();
+				// 	TRACE << "Incrementing SYN count" << ENDL;
+				// }
 
 
 				// check if FIN bit is set in TCP header
-				// if( tcp_header->th_flags & TH_FIN ) {
-				// 	results->incrementFinCount();
-				// 	TRACE << "Incrementing Fin count" << ENDL;
-				// }
-				if( ( tcp_header->th_flags & TH_FIN ) != 0 ) {
+				if( tcp_header->th_flags & TH_FIN ) {
 					results->incrementFinCount();
 					TRACE << "Incrementing Fin count" << ENDL;
 				}
+				// if( ( tcp_header->th_flags & TH_FIN ) != 0 ) {
+				// 	results->incrementFinCount();
+				// 	TRACE << "Incrementing Fin count" << ENDL;
+				// }
 
 				break;
 			case UDP:
 				// extract the src/dst ports
 				struct udphdr* udp_header;
 
-				udp_header = ( struct udphdr * ) ( packet + TRANSPORT_LAYER_OFFSET );
+				udp_header = ( struct udphdr * ) ( packet + IP_OFFSET + ntohs( ip_v4_header->ip_hl ) );
 				
 				// add udp header
 				results->newUDP(pkthdr->caplen);
-				TRACE << "Found UDP header" << ENDL;
+				TRACE << "Packet is UDP" << ENDL;
 
 				// extract UDP src port from UDP header
 				results->newSrcUDP( udp_header->uh_sport );
-				TRACE << "Extracting UDP src port" << udp_header->uh_sport << ENDL;
+				TRACE << "Source port #" << udp_header->uh_sport << ENDL;
 
 				// extract UDP dst port from UDP header
 				results->newDstUDP( udp_header->uh_dport );
-				TRACE << "Extracting UDP dst port" << udp_header->uh_dport << ENDL;
+				TRACE << "Destination port #" << udp_header->uh_dport << ENDL;
 
 				break;
 			default:
 				results->newOtherTransport( pkthdr->caplen );
-				TRACE << "Found an otherTransport packet" << ENDL;
+				TRACE << "Packet is another transport protocol" << ENDL;
 
 				break;
 		}
