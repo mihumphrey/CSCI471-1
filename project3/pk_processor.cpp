@@ -116,11 +116,11 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 		struct ip* ip_v4_header;
 		ip_v4_header = ( struct ip * )( packet + IP_OFFSET );
 
-		uint32_t ip_src = ntohl( ip_v4_header->ip_src.s_addr );
+		uint32_t ip_src = ip_v4_header->ip_src.s_addr;
 		results->newSrcIPv4( ( uint64_t ) ip_v4_header->ip_src.s_addr );
 		TRACE << "\tSource IP address is " << inet_ntoa(ip_v4_header->ip_src) << ENDL;
 
-		uint32_t ip_dst = ntohl( ip_v4_header->ip_dst.s_addr );
+		uint32_t ip_dst = ip_v4_header->ip_dst.s_addr;
 		results->newDstIPv4( ( uint64_t ) ip_v4_header->ip_dst.s_addr );
 		TRACE << "\tDestination IP address is " << inet_ntoa(ip_v4_header->ip_dst) << ENDL;
 	} else {
@@ -158,19 +158,19 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				// extract the src/dst ports and TCP flags
 				struct tcphdr* tcp_header;
 
-				tcp_header = ( struct tcphdr * ) ( packet + IP_OFFSET + ntohs( ip_v4_header->ip_hl ) );
+				tcp_header = ( struct tcphdr * ) ( ( uint64_t ) ( packet + IP_OFFSET + ( ip_v4_header->ip_hl ) * 4 ) );
 				
 				// add TCP header
 				results->newTCP( pkthdr->caplen );
 				TRACE << "Packet is TCP" << ENDL;
 
 				// extract src port from TCP header
-				results->newSrcTCP( tcp_header->th_sport );
-				TRACE << "Extracting TCP src port" << tcp_header->th_sport <<  ENDL;
+				results->newSrcTCP( ntohs ( tcp_header->th_sport ) );
+				TRACE << "Extracting TCP src port" << ntohs( tcp_header->th_sport ) <<  ENDL;
 
 				// extract dst port from TCP header
-				results->newDstTCP( tcp_header->th_dport );
-				TRACE << "Extracting TCP dst port" << tcp_header->th_dport << ENDL;
+				results->newDstTCP( ntohs ( tcp_header->th_dport ) );
+				TRACE << "Extracting TCP dst port" << ntohs( tcp_header->th_dport ) << ENDL;
 
 				// check if SYN bit is set in TCP header
 				if( tcp_header->th_flags & TH_SYN ) {
@@ -198,19 +198,19 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 				// extract the src/dst ports
 				struct udphdr* udp_header;
 
-				udp_header = ( struct udphdr * ) ( packet + IP_OFFSET + ntohs( ip_v4_header->ip_hl ) );
+				udp_header = ( struct udphdr * ) ( ( uint64_t ) ( packet + IP_OFFSET + ( ip_v4_header->ip_hl ) * 4 ) );
 				
 				// add udp header
 				results->newUDP(pkthdr->caplen);
 				TRACE << "Packet is UDP" << ENDL;
 
 				// extract UDP src port from UDP header
-				results->newSrcUDP( udp_header->uh_sport );
-				TRACE << "Source port #" << udp_header->uh_sport << ENDL;
+				results->newSrcUDP( ntohs ( udp_header->uh_sport ) );
+				TRACE << "Source port #" << ntohs( udp_header->uh_sport ) << ENDL;
 
 				// extract UDP dst port from UDP header
-				results->newDstUDP( udp_header->uh_dport );
-				TRACE << "Destination port #" << udp_header->uh_dport << ENDL;
+				results->newDstUDP( ntohs ( udp_header->uh_dport ) );
+				TRACE << "Destination port #" << ntohs( udp_header->uh_dport ) << ENDL;
 
 				break;
 			default:
