@@ -123,6 +123,10 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 		uint32_t ip_dst = ip_v4_header->ip_dst.s_addr;
 		results->newDstIPv4( ( uint64_t ) ip_v4_header->ip_dst.s_addr );
 		TRACE << "\tDestination IP address is " << inet_ntoa(ip_v4_header->ip_dst) << ENDL;
+
+		struct ip_timestamp* ip_flags = ( struct ip_timestamp *)( packet + IP_OFFSET );
+		
+		TRACE << "\tipFlags = " <<( uint64_t ) ip_flags->ipt_flg << ENDL;
 	} else {
 		results->newOtherNetwork( pkthdr->caplen );
 		TRACE << "\tPacket is from another network" << ENDL;
@@ -166,16 +170,16 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 
 				// extract src port from TCP header
 				results->newSrcTCP( ntohs ( tcp_header->th_sport ) );
-				TRACE << "Extracting TCP src port" << ntohs( tcp_header->th_sport ) <<  ENDL;
+				TRACE << "Source port #" << ntohs( tcp_header->th_sport ) <<  ENDL;
 
 				// extract dst port from TCP header
 				results->newDstTCP( ntohs ( tcp_header->th_dport ) );
-				TRACE << "Extracting TCP dst port" << ntohs( tcp_header->th_dport ) << ENDL;
+				TRACE << "Destination port #" << ntohs( tcp_header->th_dport ) << ENDL;
 
 				// check if SYN bit is set in TCP header
 				if( tcp_header->th_flags & TH_SYN ) {
 					results->incrementSynCount();
-					TRACE << "Incrementing SYN count" << ENDL;
+					TRACE << "SYN bit set" << ENDL;
 				}
 				// if( tcp_header->th_flags & TH_SYN ) {
 				// 	results->incrementSynCount();
