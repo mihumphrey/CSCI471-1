@@ -42,10 +42,10 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
     // ***********************************************************************
 	struct ether_header *link_header;
 	link_header = ( struct ether_header * ) packet;
-	uint64_t mac_src = 0;
-	uint64_t mac_dst = 0;
+	u_int64_t mac_src = 0;
+	u_int64_t mac_dst = 0;
 	memcpy( &mac_src, link_header->ether_shost, sizeof mac_src );
-	memcpy( &mac_dst, link_header->ether_shost, sizeof mac_dst );
+	memcpy( &mac_dst, link_header->ether_dhost, sizeof mac_dst );
 
 	results->newSrcMac( mac_src );
 	results->newDstMac( mac_dst );
@@ -77,7 +77,7 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 	}
 
 	// add logging for ethernet II
-	TRACE << "\tEther Type = 2048" << ENDL;
+	TRACE << "\tEther Type = " << len_type_bytes << ENDL;
 	TRACE << "\t\tPacket is Ethernet II" << ENDL;
 
 	results->newEthernet( pkthdr->caplen );
@@ -99,7 +99,6 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 
 	if( len_type_bytes == ARP ) {
 		results->newARP( pkthdr->caplen );
-		TRACE << "\tPacket is ARP" << ENDL;
 
 		return;
 	} else if( len_type_bytes == IP_V_6 ) {
