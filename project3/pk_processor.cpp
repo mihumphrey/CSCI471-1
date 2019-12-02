@@ -118,15 +118,17 @@ void pk_processor(u_char *user, const struct pcap_pkthdr *pkthdr, const u_char *
 
 		uint32_t ip_src = ip_v4_header->ip_src.s_addr;
 		results->newSrcIPv4( ( uint64_t ) ip_v4_header->ip_src.s_addr );
-		TRACE << "\tSource IP address is " << inet_ntoa(ip_v4_header->ip_src) << ENDL;
+		TRACE << "\tSource IP address is " << inet_ntoa( ip_v4_header->ip_src ) << ENDL;
 
 		uint32_t ip_dst = ip_v4_header->ip_dst.s_addr;
 		results->newDstIPv4( ( uint64_t ) ip_v4_header->ip_dst.s_addr );
-		TRACE << "\tDestination IP address is " << inet_ntoa(ip_v4_header->ip_dst) << ENDL;
+		TRACE << "\tDestination IP address is " << inet_ntoa( ip_v4_header->ip_dst ) << ENDL;
 
-		struct ip_timestamp* ip_flags = ( struct ip_timestamp *)( packet + IP_OFFSET );
+		struct ip_timestamp* ip_flags = ( struct ip_timestamp * )( packet + IP_OFFSET + 6);
 		
-		TRACE << "\tipFlags = " <<( uint64_t ) ip_flags->ipt_flg << ENDL;
+		// uint64_t flagr = 0;
+		// memcpy(&flagr, ip_flags->ipt_flg, sizeof flagr);
+		TRACE << "\tipFlags = " << ntohs ( ip_flags->ipt_code ) << ENDL;
 	} else {
 		results->newOtherNetwork( pkthdr->caplen );
 		TRACE << "\tPacket is from another network" << ENDL;
