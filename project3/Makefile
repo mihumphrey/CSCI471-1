@@ -21,13 +21,13 @@ INC_FILES = networkStructures.h	resultsC.h packetstats.h statisticsC.h
 
 
 # Macport boost libraries
-LIBRARYS = -lboost_regex-mt -lboost_log_setup-mt -lboost_log-mt -lboost_thread-mt -lboost_system-mt -lpthread -lpcap
+# LIBRARYS = -lboost_regex-mt -lboost_log_setup-mt -lboost_log-mt -lboost_thread-mt -lboost_system-mt -lpthread -lpcap
 
 
 #
 # Any libraries we might need.
 # Uncomment this line for Isengard
-# LIBRARYS =  -lpcap  -lboost_log_setup -lboost_log  -lboost_thread -lpthread
+LIBRARYS =  -lpcap  -lboost_log_setup -lboost_log  -lboost_thread -lpthread
 
 
 
